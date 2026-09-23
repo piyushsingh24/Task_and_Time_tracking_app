@@ -7,6 +7,7 @@ import {
   Circle,
   ListChecks,
   LoaderCircle,
+  Pencil,
   Play,
   Search,
   Square,
@@ -314,6 +315,58 @@ export function TaskManager() {
     setTasks((prev) => [created, ...prev]);
   }
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftDesc, setDraftDesc] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+
+  function startEdit(task: Task) {
+    setEditingId(task.id);
+    setDraftTitle(task.title);
+    setDraftDesc(task.description ?? "");
+    setEditError(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditError(null);
+  }
+
+  /** Save title/description inline — single row updates, list never reloads. */
+  async function saveEdit(task: Task) {
+    if (draftTitle.trim().length === 0) {
+      setEditError("Title is required.");
+      return;
+    }
+    setMutating(task.id);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: draftTitle.trim(),
+          description: draftDesc.trim().length > 0 ? draftDesc.trim() : null,
+        }),
+      });
+      const json = (await res.json()) as {
+        success: boolean;
+        data?: { task: Task };
+        error?: { message?: string };
+      };
+      if (!res.ok || !json.success || !json.data) {
+        setEditError(json.error?.message ?? "Unable to save changes.");
+        return;
+      }
+      applyTaskUpdate(json.data.task);
+      setEditingId(null);
+    } catch {
+      setEditError("Something went wrong. Please try again.");
+    } finally {
+      setMutating(null);
+    }
+  }
+
   const overdueCount = tasks.filter((t) => getDueState(t.dueDate, t.status) === "overdue").length;
   const inProgressCount = tasks.filter((t) => t.status === "IN_PROGRESS").length;
 
@@ -479,8 +532,48 @@ export function TaskManager() {
                           />
 
                           <CardContent className="flex flex-col gap-3 py-4 pl-5">
-                            {/* Header row: icon + title/description + delete */}
+                            {/* Header row: icon + title/description + actions */}
                             <div className="flex items-start justify-between gap-3">
+                              {editingId === task.id ? (
+                                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                                  <Input
+                                    aria-label="Task title"
+                                    value={draftTitle}
+                                    maxLength={200}
+                                    disabled={busy}
+                                    onChange={(e) => setDraftTitle(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") void saveEdit(task);
+                                      if (e.key === "Escape") cancelEdit();
+                                    }}
+                                  />
+                                  <textarea
+                                    aria-label="Task description"
+                                    value={draftDesc}
+                                    rows={2}
+                                    disabled={busy}
+                                    onChange={(e) => setDraftDesc(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Escape") cancelEdit();
+                                    }}
+                                    placeholder="Description (optional)"
+                                    className="min-h-9 w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  />
+                                  {editError ? (
+                                    <p role="alert" className="text-xs text-destructive">
+                                      {editError}
+                                    </p>
+                                  ) : null}
+                                  <div className="flex gap-2">
+                                    <Button size="sm" disabled={busy} onClick={() => void saveEdit(task)}>
+                                      {busy ? "Saving..." : "Save"}
+                                    </Button>
+                                    <Button variant="outline" size="sm" disabled={busy} onClick={cancelEdit}>
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
                               <div className="flex min-w-0 items-start gap-3">
                                 <span
                                   className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg ${meta.tileClass}`}
@@ -507,16 +600,31 @@ export function TaskManager() {
                                   ) : null}
                                 </div>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={`Delete ${task.title}`}
-                                onClick={() => void removeTask(task)}
-                                disabled={busy}
-                                className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
-                              >
-                                <Trash2 />
-                              </Button>
+                              )}
+                              <div className="flex shrink-0 items-center gap-1">
+                                {editingId === task.id ? null : (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label={`Edit ${task.title}`}
+                                    onClick={() => startEdit(task)}
+                                    disabled={busy}
+                                    className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100"
+                                  >
+                                    <Pencil />
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label={`Delete ${task.title}`}
+                                  onClick={() => void removeTask(task)}
+                                  disabled={busy}
+                                  className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+                                >
+                                  <Trash2 />
+                                </Button>
+                              </div>
                             </div>
 
                             {/* Meta row: badges + dates */}
