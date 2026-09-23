@@ -129,7 +129,29 @@ All responses use `{ success: true, data }` / `{ success: false, error: { code, 
 
 ## Screenshots
 
-<!-- TODO: add after deploy: login, dashboard, create task + AI, active timer, time logs, analytics -->
+### Login
+
+![Login](public/1.png)
+
+### Dashboard
+
+![Dashboard](public/2.png)
+
+### Today — daily summary and sessions
+
+![Today](public/3.png)
+
+### Tasks — create with AI assist
+
+![Tasks](public/4.png)
+
+### Time Logs
+
+![Time Logs](public/5.png)
+
+### Analytics — last 7 days
+
+![Analytics](public/6.png)
 
 ## Future Improvements
 
