@@ -17,6 +17,11 @@ export const metadata: Metadata = {
   title: "TaskFlow — AI-Powered Task & Time Tracking",
   description:
     "Manage tasks, track work sessions in real time, and view daily productivity summaries.",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
