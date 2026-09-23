@@ -2,7 +2,7 @@
 
 TaskFlow is a full-stack task and time tracking application. Users manage tasks, track work sessions in real time with one active timer, and review daily summaries plus weekly analytics. Groq AI turns natural-language notes into clear task titles and descriptions.
 
-✅ **Live demo:** <https://your-app.vercel.app> <!-- TODO: replace with the Vercel URL after Phase 14 deploy -->
+✅ **Live demo:** <https://task-and-time-tracking-app-black.vercel.app/>
 
 ✅ **Working auth:** email + password (Auth.js credentials, bcrypt hashing, JWT sessions). Register at `/register`, log in at `/login`.
 
@@ -11,7 +11,7 @@ TaskFlow is a full-stack task and time tracking application. Users manage tasks,
 > - Email: `demo@taskflow.example`
 > - Password: `DemoPass123!`
 >
-> <!-- TODO: create this account after deploy (register once on the live site), or replace with real demo credentials. Never use personal credentials. -->
+> <!-- TODO: create this account on the live site (register once at /register), or replace with real demo credentials. Never use personal credentials. -->
 
 ## Features
 
