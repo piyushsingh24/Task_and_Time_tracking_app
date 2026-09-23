@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// TaskFlow database — per docs/03-DATABASE.md
+//
+// Decisions (explicit):
+// - IDs are String cuid(): Auth.js-compatible, non-enumerable,
+//   Neon/Postgres friendly. Docs specify `id PK` without a type.
+// - Cascade: User delete → Tasks + TimeLogs; Task delete → TimeLogs.
+//   Prevents orphans; required explicit strategy per docs.
+// - Timestamps are timestamptz; formatting belongs to the UI.
+// - TimeLog.duration is Int seconds, null while active.
+//   endedAt = null means active. Server computes duration on stop.
+// - Single-active-timer rule is enforced by a Postgres partial
+//   unique index (see prisma/migrations/.../migration.sql):
+//     CREATE UNIQUE INDEX ... WHERE "endedAt" IS NULL
+//   Prisma schema language cannot express partial indexes,
+//   so it lives as raw SQL in the migration. Phase 7 uses it
+//   plus a transactional check for safe concurrent starts.
+// ─────────────────────────────────────────────
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String?
+  // Normalized (trimmed + lowercased) in service logic before storage.
+  email        String    @unique
+  // bcrypt hash — never plaintext, never exposed in API responses.
+  passwordHash String
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(6)
+
+  tasks    Task[]
+  timeLogs TimeLog[]
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?    @db.Text
+  status      TaskStatus @default(PENDING)
+  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime   @updatedAt @db.Timestamptz(6)
+  // Set when status becomes COMPLETED, cleared otherwise (service logic).
+  completedAt DateTime?  @db.Timestamptz(6)
+  // Optional due day (date-only). Stored as UTC midnight; UI formats in UTC
+  // so the chosen calendar day never shifts across timezones.
+  dueDate     DateTime?  @db.Timestamptz(6)
+
+  timeLogs TimeLog[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, dueDate])
+}
+
+model TimeLog {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId    String
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  startedAt DateTime  @default(now()) @db.Timestamptz(6)
+  endedAt   DateTime? @db.Timestamptz(6)
+  // Integer seconds, server-calculated on stop. Null while active.
+  duration  Int?
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([taskId])
+  @@index([userId, startedAt])
+  @@index([userId, endedAt])
+}
