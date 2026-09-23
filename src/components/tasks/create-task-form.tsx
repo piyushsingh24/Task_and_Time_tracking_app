@@ -100,7 +100,8 @@ export function CreateTaskForm({ onCreated }: { onCreated: (task: TaskListItem) 
               maxLength={200}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              disabled={pending}
+              disabled={pending || generating}
+              aria-busy={generating}
             />
             <Button
               type="button"
@@ -111,6 +112,11 @@ export function CreateTaskForm({ onCreated }: { onCreated: (task: TaskListItem) 
               <Sparkles />
               {generating ? "Generating..." : "Improve with AI"}
             </Button>
+            {generating ? (
+              <p className="text-xs text-muted-foreground">
+                AI is working on your task suggestion. Please wait...
+              </p>
+            ) : null}
             {aiError ? (
               <p role="alert" className="text-sm text-destructive">
                 {aiError}

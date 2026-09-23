@@ -1,5 +1,6 @@
 import "server-only";
-import { httpError } from "@/lib/errors";
+import { httpError, isHttpError } from "@/lib/errors";
+import { withRetry } from "@/lib/retry";
 import { suggestionSchema, type Suggestion } from "@/lib/validators/ai";
 
 /**
@@ -18,20 +19,30 @@ import { suggestionSchema, type Suggestion } from "@/lib/validators/ai";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const TIMEOUT_MS = 15_000;
+const RETRY_DELAY_MS = 5_000;
+const MAX_ATTEMPTS = 3;
 
 function model(): string {
   return process.env.GROQ_MODEL?.trim() || "openai/gpt-oss-20b";
 }
 
-export async function suggestTask(input: string): Promise<Suggestion> {
-  const apiKey = process.env.GROQ_API_KEY?.trim();
-  if (!apiKey) {
-    throw httpError(503, "AI enhancement is not configured.", "AI_UNAVAILABLE");
+function shouldRetryAiError(error: unknown): boolean {
+  if (error instanceof Error && "status" in error) {
+    const status = (error as { status?: number }).status;
+    if (status === 401 || status === 403 || status === 503) {
+      return false;
+    }
+    return status === 408 || status === 429 || status === 500 || status === 502;
   }
 
+  return true;
+}
+
+async function requestSuggestion(input: string, apiKey: string): Promise<Suggestion> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   let res: Response;
+
   try {
     res = await fetch(GROQ_URL, {
       method: "POST",
@@ -97,5 +108,42 @@ export async function suggestTask(input: string): Promise<Suggestion> {
     console.error("groq schema mismatch", suggestion.error.issues);
     throw httpError(502, "AI service returned an unusable suggestion.", "AI_BAD_RESPONSE");
   }
+
   return suggestion.data;
+}
+
+export async function suggestTask(input: string): Promise<Suggestion> {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) {
+    throw httpError(503, "AI enhancement is not configured.", "AI_UNAVAILABLE");
+  }
+
+  try {
+    return await withRetry(
+      async () => requestSuggestion(input, apiKey),
+      {
+        retries: MAX_ATTEMPTS,
+        delayMs: RETRY_DELAY_MS,
+        shouldRetry: shouldRetryAiError,
+      },
+    );
+  } catch (error) {
+    if (isHttpError(error)) {
+      if (error.status === 401 || error.status === 403 || error.status === 503) {
+        throw error;
+      }
+
+      throw httpError(
+        502,
+        "AI suggestion could not be generated after 3 attempts. Please try again in a moment.",
+        "AI_UPSTREAM_ERROR",
+      );
+    }
+
+    throw httpError(
+      502,
+      "AI suggestion could not be generated after 3 attempts. Please try again in a moment.",
+      "AI_UPSTREAM_ERROR",
+    );
+  }
 }
