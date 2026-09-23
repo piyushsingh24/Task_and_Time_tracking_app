@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDurationShort } from "@/lib/time";
 
 type DayRow = { date: string; totalSeconds: number; completedTasks: number };
 type TaskRow = { taskId: string; title: string; totalSeconds: number };
@@ -143,7 +144,7 @@ export function AnalyticsView() {
               <BarChart data={timeByDay} margin={{ top: 4, right: 4, bottom: 0, left: -14 }}>
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                 <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} width={44} />
-                <Tooltip formatter={(v) => [`${v} min`, "Tracked"]} labelFormatter={(_, p) => p?.[0]?.payload?.date ?? ""} />
+                <Tooltip formatter={(_, __, props) => [formatDurationShort(props?.payload?.totalSeconds ?? 0), "Tracked"]} labelFormatter={(_, p) => p?.[0]?.payload?.date ?? ""} />
                 <Bar dataKey="minutes" fill="currentColor" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -185,7 +186,7 @@ export function AnalyticsView() {
               >
                 <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                 <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} width={110} />
-                <Tooltip formatter={(v) => [`${v} min`, "Tracked"]} />
+                <Tooltip formatter={(_, __, props) => [formatDurationShort(props?.payload?.totalSeconds ?? 0), "Tracked"]} />
                 <Bar dataKey="minutes" fill="currentColor" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>

@@ -176,14 +176,14 @@ export function DashboardView() {
   const now = new Date();
   const todayKey = now.toDateString();
   const hourly = (() => {
-    const minutes = new Array<number>(24).fill(0);
+    const seconds = new Array<number>(24).fill(0);
     for (const log of logs) {
       if (log.duration === null) continue;
       const d = new Date(log.startedAt);
       if (d.toDateString() !== todayKey) continue;
-      minutes[d.getHours()] += log.duration / 60;
+      seconds[d.getHours()] += log.duration;
     }
-    return minutes.map((m, h) => ({ hour: h, label: `${h}`, minutes: Math.round(m) }));
+    return seconds.map((s, h) => ({ hour: h, label: `${h}`, minutes: Math.round(s / 60), seconds: s }));
   })();
 
   const hasActivity = hourly.some((h) => h.minutes > 0);
@@ -574,7 +574,10 @@ export function DashboardView() {
                     />
                     <Tooltip
                       cursor={{ fill: "currentColor", fillOpacity: 0.05 }}
-                      formatter={(v) => [`${v} min`, "Tracked"]}
+                      formatter={(_, __, props) => [
+                        formatDurationShort(props?.payload?.seconds ?? 0),
+                        "Tracked",
+                      ]}
                       labelFormatter={(h) => `${h}:00`}
                       contentStyle={{
                         borderRadius: 8,

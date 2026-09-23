@@ -9,15 +9,17 @@ export function formatElapsed(totalSeconds: number): string {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-/** Seconds -> "45m", "1h 20m", "2h", "30s". Null (running) -> "In progress". */
+/** Exact seconds -> "1m 12s", "45m", "1h 20m 3s", "30s". Null (running) -> "In progress". */
 export function formatDurationShort(totalSeconds: number | null | undefined): string {
   if (totalSeconds === null || totalSeconds === undefined) return "In progress";
   const s = Math.max(0, Math.floor(totalSeconds));
-  if (s < 60) return `${s}s`;
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
-  if (h === 0) return `${m}m`;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  const sec = s % 60;
+  if (h === 0 && m === 0) return `${sec}s`;
+  if (h === 0) return sec === 0 ? `${m}m` : `${m}m ${sec}s`;
+  const mid = m === 0 ? "" : ` ${m}m`;
+  return sec === 0 ? `${h}h${mid}` : `${h}h${mid} ${sec}s`;
 }
 
 /** ISO timestamp -> "Sep 22, 10:00 AM". Formatting belongs to the UI. */
